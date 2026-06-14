@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>JobGuard AI — Fake Job Detector</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F9FC;
+  --surface:#FFFFFF;
+  --border:#E4E9F0;
+  --text:#0F1924;
+  --muted:#64748B;
+  --safe:#16A34A;
+  --low:#65A30D;
+  --medium:#D97706;
+  --high:#DC2626;
+  --critical:#9F1239;
+  --radius:14px;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:0 16px 60px}
+
+/* ── HEADER ── */
+header{text-align:center;padding:44px 0 28px}
+.logo{display:inline-flex;align-items:center;gap:10px;margin-bottom:6px}
+.logo-icon{width:34px;height:34px;background:#0F1924;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo h1{font-size:20px;font-weight:700;letter-spacing:-0.4px}
+.tagline{font-size:13px;color:var(--muted)}
+
+/* ── LAYOUT ── */
+.container{max-width:680px;margin:0 auto}
+
+/* ── CARD ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:14px}
+.card-label{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+
+/* ── INPUT ── */
+textarea{
+  width:100%;min-height:170px;border:1px solid var(--border);border-radius:10px;
+  padding:14px;font-family:'Inter',sans-serif;font-size:13.5px;color:var(--text);
+  background:#FAFBFC;resize:vertical;outline:none;transition:border-color .18s;line-height:1.65
+}
+textarea:focus{border-color:#94A3B8;background:#fff}
+textarea::placeholder{color:#A0AEBB}
+
+.btn{
+  width:100%;padding:13px;background:#0F1924;color:#fff;border:none;
+  border-radius:9px;font-family:'Inter',sans-serif;font-size:13.5px;font-weight:600;
+  cursor:pointer;margin-top:12px;transition:opacity .18s,transform .1s;letter-spacing:.03em
+}
+.btn:hover{opacity:.88}
+.btn:active{transform:scale(.99)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* ── LOADING ── */
+.loading{display:none;text-align:center;padding:36px 0}
+.loading.show{display:block}
+.spinner{width:30px;height:30px;border:2px solid #DDE4EE;border-top-color:#0F1924;border-radius:50%;animation:spin .75s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading p{font-size:13px;color:var(--muted)}
+
+/* ── RESULTS ── */
+.results{display:none}
+.results.show{display:block;animation:rise .35s ease}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── GAUGE CARD ── */
+.gauge-row{display:grid;grid-template-columns:170px 1fr;gap:22px;align-items:center}
+.gauge-wrap{text-align:center}
+.gauge-score{font-family:'Space Mono',monospace;font-size:38px;font-weight:700;line-height:1;margin-top:-6px;transition:color .4s}
+.gauge-sub{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:5px}
+.score-meta{display:flex;flex-direction:column;gap:10px}
+.risk-badge{
+  display:inline-flex;align-items:center;gap:5px;padding:4px 12px;
+  border-radius:100px;font-size:11.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;width:fit-content
+}
+.badge-safe{background:#F0FDF4;color:#15803D}
+.badge-low{background:#F7FEE7;color:#4D7C0F}
+.badge-medium{background:#FFFBEB;color:#B45309}
+.badge-high{background:#FEF2F2;color:#B91C1C}
+.badge-critical{background:#FFF1F2;color:#9F1239}
+.score-summary{font-size:13.5px;color:#334155;line-height:1.7}
+
+/* ── INDICATORS ── */
+.ind-list{display:flex;flex-direction:column;gap:10px}
+.ind-item{display:flex;align-items:flex-start;gap:11px;padding:12px;border-radius:9px;background:#F8FAFC;border:1px solid #EFF2F7}
+.ind-dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.dot-low{background:#84CC16}
+.dot-medium{background:#F59E0B}
+.dot-high{background:#EF4444}
+.ind-name{font-size:13px;font-weight:600;margin-bottom:2px;color:var(--text)}
+.ind-desc{font-size:12px;color:var(--muted);line-height:1.55}
+.no-flags{font-size:13px;color:#16A34A;display:flex;align-items:center;gap:8px}
+
+/* ── TRUST SIGNALS ── */
+.trust-list{display:flex;flex-direction:column;gap:8px}
+.trust-item{display:flex;align-items:flex-start;gap:9px;font-size:13px;color:#334155;line-height:1.5}
+.chk{color:#22C55E;font-weight:700;margin-top:1px;flex-shrink:0}
+
+/* ── RECOMMENDATION ── */
+.reco{border-radius:9px;padding:14px 16px;font-size:13px;line-height:1.7}
+.reco-safe{background:#F0FDF4;border:1px solid #BBF7D0;color:#14532D}
+.reco-low{background:#F7FEE7;border:1px solid #D9F99D;color:#365314}
+.reco-medium{background:#FFFBEB;border:1px solid #FDE68A;color:#78350F}
+.reco-high{background:#FEF2F2;border:1px solid #FECACA;color:#7F1D1D}
+.reco-critical{background:#FFF1F2;border:1px solid #FECDD3;color:#881337}
+
+/* ── EXPLAINER SECTION ── */
+.explain-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.explain-stat{background:#F8FAFC;border:1px solid #EFF2F7;border-radius:9px;padding:14px}
+.explain-stat-val{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;line-height:1}
+.explain-stat-label{font-size:11px;color:var(--muted);margin-top:4px}
+
+/* ── FOOTER ── */
+.footer{text-align:center;padding-top:24px;font-size:12px;color:#94A3B8}
+
+
+@media(max-width:480px){
+  .gauge-row{grid-template-columns:1fr}
+  .gauge-wrap{display:flex;align-items:center;gap:16px;text-align:left}
+  .gauge-wrap svg{flex-shrink:0}
+  .explain-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M9 1.5L2.25 4.875V9C2.25 12.375 5.175 15.525 9 16.5C12.825 15.525 15.75 12.375 15.75 9V4.875L9 1.5Z" fill="white" fill-opacity=".9"/>
+          <path d="M6 9.5L8 11.5L12 7.5" stroke="#0F1924" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h1>JobGuard AI</h1>
+    </div>
+    <p class="tagline">Paste any job description — AI detects scams in seconds</p>
+  </header>
+
+  <!-- INPUT -->
+  <div class="card">
+    <div class="card-label">Job Description</div>
+    <textarea id="job-input" placeholder="Paste a LinkedIn job posting, job description, or recruiter message here...
+
+Include job title, company name, salary, requirements, contact details — the more detail, the better the analysis."></textarea>
+    <button class="btn" id="analyze-btn" onclick="analyzeJob()">Analyze Job Posting →</button>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p>Running fraud analysis…</p>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results" id="results">
+
+    <!-- FRAUD SCORE -->
+    <div class="card">
+      <div class="card-label">Fraud Assessment</div>
+      <div class="gauge-row">
+        <div class="gauge-wrap">
+          <svg width="155" height="88" viewBox="0 0 155 88">
+            <defs>
+              <linearGradient id="arcGrad" x1="8" y1="0" x2="147" y2="0" gradientUnits="userSpaceOnUse">
+                <stop offset="0%"   stop-color="#22C55E"/>
+                <stop offset="48%"  stop-color="#F59E0B"/>
+                <stop offset="100%" stop-color="#EF4444"/>
+              </linearGradient>
+            </defs>
+            <!-- bg arc -->
+            <path d="M 8 83 A 69.5 69.5 0 0 1 147 83" fill="none" stroke="#E4E9F0" stroke-width="9" stroke-linecap="round"/>
+            <!-- score arc -->
+            <path id="score-arc" d="M 8 83 A 69.5 69.5 0 0 1 147 83" fill="none"
+              stroke="url(#arcGrad)" stroke-width="9" stroke-linecap="round"
+              stroke-dasharray="218" stroke-dashoffset="218"/>
+          </svg>
+          <div class="gauge-score" id="gauge-score">--</div>
+          <div class="gauge-sub">/ 100 Fraud Score</div>
+        </div>
+        <div class="score-meta">
+          <div id="risk-badge" class="risk-badge badge-medium">⬤ MEDIUM RISK</div>
+          <p class="score-summary" id="score-summary"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI EXPLAINABILITY STATS -->
+    <div class="card" id="stats-card">
+      <div class="card-label">Explainable AI — Signal Breakdown</div>
+      <div class="explain-grid">
+        <div class="explain-stat">
+          <div class="explain-stat-val" id="stat-flags" style="color:#EF4444">0</div>
+          <div class="explain-stat-label">Red Flags Detected</div>
+        </div>
+        <div class="explain-stat">
+          <div class="explain-stat-val" id="stat-trust" style="color:#22C55E">0</div>
+          <div class="explain-stat-label">Trust Signals Found</div>
+        </div>
+        <div class="explain-stat">
+          <div class="explain-stat-val" id="stat-high" style="color:#B91C1C">0</div>
+          <div class="explain-stat-label">High-Severity Flags</div>
+        </div>
+        <div class="explain-stat">
+          <div class="explain-stat-val" id="stat-score-label" style="color:#64748B">--</div>
+          <div class="explain-stat-label">Risk Level</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RISK INDICATORS -->
+    <div class="card">
+      <div class="card-label">⚠ Risk Indicators</div>
+      <div class="ind-list" id="ind-list"></div>
+    </div>
+
+    <!-- TRUST SIGNALS -->
+    <div class="card" id="trust-card" style="display:none">
+      <div class="card-label">✓ Positive Trust Signals</div>
+      <div class="trust-list" id="trust-list"></div>
+    </div>
+
+    <!-- RECOMMENDATION -->
+    <div class="card">
+      <div class="card-label">Recommendation</div>
+      <div class="reco reco-medium" id="reco"></div>
+    </div>
+
+  </div><!-- /results -->
+
+  <div class="footer">JobGuard AI · Powered by Claude AI · For educational use</div>
+</div>
+
+<script>
+const ARC_LENGTH = 218; // π × 69.5 ≈ 218.2
+
+
+
+async function analyzeJob() {
+  const text = document.getElementById('job-input').value.trim();
+  if (!text) { alert('Please paste a job description first.'); return; }
+
+  const btn    = document.getElementById('analyze-btn');
+  const loader = document.getElementById('loading');
+  const res    = document.getElementById('results');
+
+  btn.disabled = true;
+  btn.textContent = 'Analyzing…';
+  loader.classList.add('show');
+  res.classList.remove('show');
+
+  try {
+    const resp = await fetch('/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_text: text })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || `Server error ${resp.status}`);
+    }
+
+    const result = await resp.json();
+
+    render(result);
+
+  } catch (err) {
+    alert('Analysis failed. Please try again.\n' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Analyze Job Posting →';
+    loader.classList.remove('show');
+  }
+}
+
+// ── Client-side safety floor: SAFE only when score ≤ 10 ──
+function scoreToLevel(s) {
+  if (s <= 10) return 'safe';
+  if (s <= 30) return 'low';
+  if (s <= 55) return 'medium';
+  if (s <= 75) return 'high';
+  return 'critical';
+}
+const LEVEL_RANK = { safe:0, low:1, medium:2, high:3, critical:4 };
+function higherLevel(a, b) {
+  return LEVEL_RANK[a] >= LEVEL_RANK[b] ? a : b;
+}
+
+function render(r) {
+  const score    = Math.min(100, Math.max(0, r.fraud_score || 0));
+  const apiLevel = (r.risk_level || 'MEDIUM').toLowerCase();
+  // Enforce floor: score > 10 can NEVER be SAFE; always pick the more severe level
+  const level    = higherLevel(apiLevel, scoreToLevel(score));
+
+  // ── Gauge ──
+  animateGauge(score, level);
+
+  // ── Risk badge ──
+  const badge = document.getElementById('risk-badge');
+  const labels = { safe:'✓ SAFE', low:'⚪ LOW RISK', medium:'🟡 MEDIUM RISK', high:'🔴 HIGH RISK', critical:'⛔ CRITICAL RISK' };
+  badge.textContent = labels[level] || level.toUpperCase();
+  badge.className   = `risk-badge badge-${level}`;
+
+  // ── Summary ──
+  document.getElementById('score-summary').textContent = r.summary || '';
+
+  // ── Indicators ──
+  const inds     = r.risk_indicators || [];
+  const indList  = document.getElementById('ind-list');
+  const highCount = inds.filter(i => i.severity === 'high').length;
+  indList.innerHTML = '';
+
+  if (inds.length === 0) {
+    indList.innerHTML = '<div class="no-flags"><span style="font-size:18px">✅</span> No significant red flags detected in this posting.</div>';
+  } else {
+    inds.forEach(ind => {
+      const el = document.createElement('div');
+      el.className = 'ind-item';
+      el.innerHTML = `
+        <div class="ind-dot dot-${ind.severity || 'medium'}"></div>
+        <div>
+          <div class="ind-name">${esc(ind.indicator)}</div>
+          <div class="ind-desc">${esc(ind.description)}</div>
+        </div>`;
+      indList.appendChild(el);
+    });
+  }
+
+  // ── Stats ──
+  const trusts = r.trust_signals || [];
+  document.getElementById('stat-flags').textContent  = inds.length;
+  document.getElementById('stat-trust').textContent  = trusts.length;
+  document.getElementById('stat-high').textContent   = highCount;
+  document.getElementById('stat-score-label').textContent = r.risk_level || '--';
+
+  // ── Trust signals ──
+  const trustCard = document.getElementById('trust-card');
+  const trustList = document.getElementById('trust-list');
+  trustList.innerHTML = '';
+  if (trusts.length > 0) {
+    trustCard.style.display = '';
+    trusts.forEach(s => {
+      const el = document.createElement('div');
+      el.className = 'trust-item';
+      el.innerHTML = `<span class="chk">✓</span><span>${esc(s)}</span>`;
+      trustList.appendChild(el);
+    });
+  } else {
+    trustCard.style.display = 'none';
+  }
+
+  // ── Recommendation ──
+  const reco = document.getElementById('reco');
+  reco.className = `reco reco-${level}`;
+  reco.textContent = r.recommendation || '';
+
+  // ── Show ──
+  document.getElementById('results').classList.add('show');
+  setTimeout(() => document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+}
+
+function animateGauge(target, level) {
+  const arc   = document.getElementById('score-arc');
+  const num   = document.getElementById('gauge-score');
+  const start = performance.now();
+  const dur   = 900;
+
+  const colors = { safe:'#16A34A', low:'#65A30D', medium:'#D97706', high:'#DC2626', critical:'#9F1239' };
+  const finalColor = colors[level] || '#D97706';
+
+  function tick(now) {
+    const t = Math.min((now - start) / dur, 1);
+    const e = 1 - Math.pow(1 - t, 3); // ease-out-cubic
+    const v = target * e;
+
+    arc.setAttribute('stroke-dashoffset', (ARC_LENGTH * (1 - v / 100)).toFixed(2));
+    num.textContent = Math.round(v);
+    num.style.color = finalColor;
+
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('job-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.ctrlKey) analyzeJob();
+  });
+});
+</script>
+</body>
+</html>
