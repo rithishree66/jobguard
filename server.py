@@ -333,10 +333,11 @@ def analyze():
 # ══════════════════════════════════════════════
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
     print("\n🛡️  JobGuard AI  —  Rule-Based Fraud Detector")
     print("─" * 44)
     print("   No API key needed · Runs 100% locally")
-    print("   URL : http://localhost:5000")
+    print(f"   URL : http://localhost:{port}")
     print("─" * 44)
     print("   Press Ctrl+C to stop\n")
-    app.run(debug=False, port=5000)
+    app.run(debug=False, host="0.0.0.0", port=port)
